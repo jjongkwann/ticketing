@@ -1,7 +1,13 @@
+# syntax=docker/dockerfile:1
 FROM python:3.11-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+COPY pyproject.toml .
+RUN uv pip install --system --no-cache -r pyproject.toml
 COPY app/ ./app/
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
