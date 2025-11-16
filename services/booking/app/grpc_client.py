@@ -1,9 +1,11 @@
-import grpc
 import os
 from typing import Optional
 
+import grpc
+
 # Note: In production, generate from inventory.proto
 # For now, using mock client structure
+
 
 class InventoryServiceClient:
     """gRPC 클라이언트 for Inventory Service"""
@@ -37,25 +39,18 @@ class InventoryServiceClient:
         return {
             "success": True,
             "reservation_id": f"res_{event_id}_{seat_number}",
-            "message": "Seat reserved successfully"
+            "message": "Seat reserved successfully",
         }
 
     async def confirm_booking(self, reservation_id: str, user_id: str, payment_id: str) -> dict:
         """예약 확정 요청"""
         # Mock implementation
-        return {
-            "success": True,
-            "booking_id": f"booking_{reservation_id}",
-            "message": "Booking confirmed"
-        }
+        return {"success": True, "booking_id": f"booking_{reservation_id}", "message": "Booking confirmed"}
 
     async def release_seat(self, event_id: str, seat_number: str, user_id: str) -> dict:
         """좌석 해제 요청"""
         # Mock implementation
-        return {
-            "success": True,
-            "message": "Seat released"
-        }
+        return {"success": True, "message": "Seat released"}
 
 
 # Global client instance

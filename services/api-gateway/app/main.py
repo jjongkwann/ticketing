@@ -1,13 +1,14 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
+import logging
+import os
+from datetime import datetime
+
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import httpx
-import os
-from datetime import datetime
-import logging
+from slowapi.util import get_remote_address
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ SERVICES = {
     "search": os.getenv("SEARCH_SERVICE_URL", "http://search-service:8000"),
 }
 
+
 async def proxy_request(service: str, path: str, request: Request):
     """프록시 요청 처리"""
     service_url = SERVICES.get(service)
@@ -59,13 +61,11 @@ async def proxy_request(service: str, path: str, request: Request):
             else:
                 raise HTTPException(status_code=405, detail="Method not allowed")
 
-            return JSONResponse(
-                content=response.json() if response.text else {},
-                status_code=response.status_code
-            )
+            return JSONResponse(content=response.json() if response.text else {}, status_code=response.status_code)
         except httpx.RequestError as e:
             logger.error(f"Service error: {e}")
             raise HTTPException(status_code=503, detail="Service unavailable")
+
 
 # Auth routes
 @app.post("/api/auth/register")
@@ -73,15 +73,18 @@ async def proxy_request(service: str, path: str, request: Request):
 async def auth_register(request: Request):
     return await proxy_request("auth", "/auth/register", request)
 
+
 @app.post("/api/auth/login")
 @limiter.limit("10/minute")
 async def auth_login(request: Request):
     return await proxy_request("auth", "/auth/login", request)
 
+
 @app.get("/api/auth/me")
 @limiter.limit("30/minute")
 async def auth_me(request: Request):
     return await proxy_request("auth", "/auth/me", request)
+
 
 # Events routes
 @app.get("/api/events")
@@ -89,15 +92,18 @@ async def auth_me(request: Request):
 async def events_list(request: Request):
     return await proxy_request("events", "/events", request)
 
+
 @app.post("/api/events")
 @limiter.limit("10/minute")
 async def events_create(request: Request):
     return await proxy_request("events", "/events", request)
 
+
 @app.get("/api/events/{event_id}")
 @limiter.limit("100/minute")
 async def events_get(event_id: str, request: Request):
     return await proxy_request("events", f"/events/{event_id}", request)
+
 
 # Search routes
 @app.get("/api/search/events")
@@ -105,21 +111,25 @@ async def events_get(event_id: str, request: Request):
 async def search_events(request: Request):
     return await proxy_request("search", "/search/events", request)
 
+
 # Booking routes
 @app.post("/api/bookings")
 @limiter.limit("20/minute")
 async def bookings_create(request: Request):
     return await proxy_request("booking", "/bookings", request)
 
+
 @app.get("/api/bookings/my")
 @limiter.limit("30/minute")
 async def bookings_my(request: Request):
     return await proxy_request("booking", "/bookings/my", request)
 
+
 @app.post("/api/bookings/{booking_id}/confirm")
 @limiter.limit("10/minute")
 async def bookings_confirm(booking_id: str, request: Request):
     return await proxy_request("booking", f"/bookings/{booking_id}/confirm", request)
+
 
 # Payment routes
 @app.post("/api/payments/create-intent")
@@ -127,19 +137,18 @@ async def bookings_confirm(booking_id: str, request: Request):
 async def payments_create_intent(request: Request):
     return await proxy_request("payment", "/payments/create-intent", request)
 
+
 @app.post("/api/payments/webhook")
 async def payments_webhook(request: Request):
     """Stripe webhook - no rate limit"""
     return await proxy_request("payment", "/payments/webhook", request)
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "api-gateway", "timestamp": datetime.utcnow().isoformat()}
 
+
 @app.get("/")
 async def root():
-    return {
-        "service": "API Gateway",
-        "version": "1.0.0",
-        "services": list(SERVICES.keys())
-    }
+    return {"service": "API Gateway", "version": "1.0.0", "services": list(SERVICES.keys())}

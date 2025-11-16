@@ -1,10 +1,13 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+import os
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from typing import AsyncGenerator
-import os
 
-DATABASE_URL = f"mysql+aiomysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('RDS_ENDPOINT')}/ticketing"
+DATABASE_URL = (
+    f"mysql+aiomysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('RDS_ENDPOINT')}/ticketing"
+)
 
 engine = create_async_engine(
     DATABASE_URL,

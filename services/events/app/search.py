@@ -1,9 +1,10 @@
-from opensearchpy import AsyncOpenSearch, helpers
-from typing import List, Dict, Any, Optional
+import logging
+import os
 from datetime import datetime
 from decimal import Decimal
-import os
-import logging
+from typing import Any, Dict, Optional
+
+from opensearchpy import AsyncOpenSearch
 
 logger = logging.getLogger(__name__)
 
@@ -175,14 +176,16 @@ async def search_events(
     must_clauses = []
 
     if query:
-        must_clauses.append({
-            "multi_match": {
-                "query": query,
-                "fields": ["title^3", "description^2", "venue"],
-                "type": "best_fields",
-                "fuzziness": "AUTO",
+        must_clauses.append(
+            {
+                "multi_match": {
+                    "query": query,
+                    "fields": ["title^3", "description^2", "venue"],
+                    "type": "best_fields",
+                    "fuzziness": "AUTO",
+                }
             }
-        })
+        )
 
     # 필터 조건
     filter_clauses = [{"term": {"status": "published"}}]

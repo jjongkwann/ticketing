@@ -1,8 +1,9 @@
-from aiokafka import AIOKafkaProducer
 import json
-import os
 import logging
+import os
 from typing import Optional
+
+from aiokafka import AIOKafkaProducer
 
 logger = logging.getLogger(__name__)
 
@@ -11,15 +12,15 @@ class KafkaProducer:
     """Kafka producer for publishing booking events"""
 
     def __init__(self):
-        self.bootstrap_servers = os.getenv('MSK_BOOTSTRAP_SERVERS', 'localhost:9092')
+        self.bootstrap_servers = os.getenv("MSK_BOOTSTRAP_SERVERS", "localhost:9092")
         self.producer: Optional[AIOKafkaProducer] = None
 
     async def start(self):
         """Start Kafka producer"""
         try:
             self.producer = AIOKafkaProducer(
-                bootstrap_servers=self.bootstrap_servers.split(','),
-                value_serializer=lambda v: json.dumps(v).encode('utf-8')
+                bootstrap_servers=self.bootstrap_servers.split(","),
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             )
             await self.producer.start()
             logger.info(f"Kafka producer started: {self.bootstrap_servers}")
@@ -47,25 +48,25 @@ class KafkaProducer:
     async def publish_booking_created(self, booking: dict):
         """Publish booking created event"""
         event = {
-            'event_type': 'booking.created',
-            'booking_id': booking['booking_id'],
-            'event_id': booking['event_id'],
-            'user_id': booking['user_id'],
-            'seat_number': booking['seat_number'],
-            'timestamp': booking['created_at'].isoformat()
+            "event_type": "booking.created",
+            "booking_id": booking["booking_id"],
+            "event_id": booking["event_id"],
+            "user_id": booking["user_id"],
+            "seat_number": booking["seat_number"],
+            "timestamp": booking["created_at"].isoformat(),
         }
-        await self.publish_event('booking.created', event)
+        await self.publish_event("booking.created", event)
 
     async def publish_booking_confirmed(self, booking: dict):
         """Publish booking confirmed event"""
         event = {
-            'event_type': 'booking.confirmed',
-            'booking_id': booking['booking_id'],
-            'payment_id': booking.get('payment_id'),
-            'user_id': booking['user_id'],
-            'timestamp': booking.get('confirmed_at', booking['created_at']).isoformat()
+            "event_type": "booking.confirmed",
+            "booking_id": booking["booking_id"],
+            "payment_id": booking.get("payment_id"),
+            "user_id": booking["user_id"],
+            "timestamp": booking.get("confirmed_at", booking["created_at"]).isoformat(),
         }
-        await self.publish_event('booking.confirmed', event)
+        await self.publish_event("booking.confirmed", event)
 
 
 # Global instance

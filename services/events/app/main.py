@@ -1,12 +1,13 @@
+import logging
+import os
+import time
+from contextlib import asynccontextmanager
+from datetime import datetime
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from contextlib import asynccontextmanager
-from datetime import datetime
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-import time
-import os
-import logging
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 from app.db import init_db
 from app.routers import events
@@ -87,11 +88,7 @@ async def log_requests(request: Request, call_next):
         endpoint=request.url.path,
     ).observe(duration)
 
-    logger.info(
-        f"{request.method} {request.url.path} - "
-        f"Status: {response.status_code} - "
-        f"Duration: {duration:.3f}s"
-    )
+    logger.info(f"{request.method} {request.url.path} - Status: {response.status_code} - Duration: {duration:.3f}s")
 
     return response
 

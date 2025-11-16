@@ -1,7 +1,8 @@
-import stripe
-import os
 import logging
+import os
 from typing import Optional
+
+import stripe
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +14,7 @@ class StripeService:
         stripe.api_key = os.getenv("STRIPE_API_KEY", "")
         self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
-    async def create_payment_intent(
-        self,
-        amount: float,
-        currency: str,
-        metadata: dict
-    ) -> dict:
+    async def create_payment_intent(self, amount: float, currency: str, metadata: dict) -> dict:
         """Create Stripe Payment Intent"""
         try:
             # Stripe expects amount in cents
@@ -75,10 +71,7 @@ class StripeService:
             raise Exception(f"Failed to confirm payment: {str(e)}")
 
     async def create_refund(
-        self,
-        payment_intent_id: str,
-        amount: Optional[float] = None,
-        reason: Optional[str] = None
+        self, payment_intent_id: str, amount: Optional[float] = None, reason: Optional[str] = None
     ) -> dict:
         """Create Stripe refund"""
         try:
@@ -107,9 +100,7 @@ class StripeService:
     def verify_webhook_signature(self, payload: bytes, signature: str) -> dict:
         """Verify Stripe webhook signature"""
         try:
-            event = stripe.Webhook.construct_event(
-                payload, signature, self.webhook_secret
-            )
+            event = stripe.Webhook.construct_event(payload, signature, self.webhook_secret)
             return event
 
         except ValueError as e:

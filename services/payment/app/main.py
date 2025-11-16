@@ -1,11 +1,12 @@
+import logging
+import os
+import time
+from datetime import datetime
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
-from datetime import datetime
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-import time
-import os
-import logging
+from fastapi.responses import Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 from app.routers import payment
 from app.schemas import HealthResponse
@@ -17,7 +18,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"])
-REQUEST_DURATION = Histogram("http_request_duration_seconds", "HTTP request duration in seconds", ["method", "endpoint"])
+REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds", "HTTP request duration in seconds", ["method", "endpoint"]
+)
 
 app = FastAPI(title="Payment Service", description="결제 처리 서비스", version="1.0.0")
 
@@ -66,4 +69,11 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=os.getenv("ENVIRONMENT") != "production", log_level=os.getenv("LOG_LEVEL", "info").lower())
+
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=os.getenv("ENVIRONMENT") != "production",
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
+    )

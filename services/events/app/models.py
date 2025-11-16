@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum as SQLEnum, Numeric, Boolean
-from sqlalchemy.sql import func
-from app.db import Base
 import enum
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.sql import func
+
+from app.db import Base
 
 
 class EventStatus(str, enum.Enum):
