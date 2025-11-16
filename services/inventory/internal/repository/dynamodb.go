@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	ErrSeatNotFound       = errors.New("seat not found")
+	ErrSeatNotFound        = errors.New("seat not found")
 	ErrSeatAlreadyReserved = errors.New("seat already reserved")
-	ErrVersionMismatch    = errors.New("version mismatch - concurrent modification detected")
+	ErrVersionMismatch     = errors.New("version mismatch - concurrent modification detected")
 	ErrReservationNotFound = errors.New("reservation not found")
 )
 
@@ -114,13 +114,13 @@ func (r *DynamoDBRepository) ReserveSeat(ctx context.Context, eventID, seatNumbe
 			"#version": "version",
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":available":      &types.AttributeValueMemberS{Value: string(models.SeatStatusAvailable)},
-			":reserved":       &types.AttributeValueMemberS{Value: string(models.SeatStatusReserved)},
+			":available":       &types.AttributeValueMemberS{Value: string(models.SeatStatusAvailable)},
+			":reserved":        &types.AttributeValueMemberS{Value: string(models.SeatStatusReserved)},
 			":current_version": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", currentVersion)},
-			":new_version":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", currentVersion+1)},
-			":user_id":        &types.AttributeValueMemberS{Value: userID},
-			":reserved_at":    &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now)},
-			":updated_at":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now)},
+			":new_version":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", currentVersion+1)},
+			":user_id":         &types.AttributeValueMemberS{Value: userID},
+			":reserved_at":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now)},
+			":updated_at":      &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", now)},
 		},
 	}
 

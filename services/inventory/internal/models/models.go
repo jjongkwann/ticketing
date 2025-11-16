@@ -13,15 +13,15 @@ const (
 
 // Seat represents a seat in the inventory (DynamoDB seats table)
 type Seat struct {
-	EventID     string     `dynamodbav:"event_id"`
-	SeatNumber  string     `dynamodbav:"seat_number"`
-	Status      SeatStatus `dynamodbav:"status"`
-	UserID      string     `dynamodbav:"user_id,omitempty"`
-	Price       float64    `dynamodbav:"price"`
-	ReservedAt  int64      `dynamodbav:"reserved_at,omitempty"` // Unix timestamp
-	Version     int        `dynamodbav:"version"`                // For optimistic locking
-	CreatedAt   int64      `dynamodbav:"created_at"`
-	UpdatedAt   int64      `dynamodbav:"updated_at"`
+	EventID    string     `dynamodbav:"event_id"`
+	SeatNumber string     `dynamodbav:"seat_number"`
+	Status     SeatStatus `dynamodbav:"status"`
+	UserID     string     `dynamodbav:"user_id,omitempty"`
+	Price      float64    `dynamodbav:"price"`
+	ReservedAt int64      `dynamodbav:"reserved_at,omitempty"` // Unix timestamp
+	Version    int        `dynamodbav:"version"`               // For optimistic locking
+	CreatedAt  int64      `dynamodbav:"created_at"`
+	UpdatedAt  int64      `dynamodbav:"updated_at"`
 }
 
 // Reservation represents a temporary seat reservation (DynamoDB reservations table)
@@ -38,8 +38,8 @@ type Reservation struct {
 
 // Booking represents a confirmed booking (DynamoDB bookings table)
 type Booking struct {
-	BookingID  string  `dynamodbav:"booking_id"`  // PK
-	EventID    string  `dynamodbav:"event_id"`    // GSI
+	BookingID  string  `dynamodbav:"booking_id"` // PK
+	EventID    string  `dynamodbav:"event_id"`   // GSI
 	SeatNumber string  `dynamodbav:"seat_number"`
 	UserID     string  `dynamodbav:"user_id"` // GSI
 	Price      float64 `dynamodbav:"price"`
