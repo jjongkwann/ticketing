@@ -357,6 +357,129 @@ docker-compose down
 
 ---
 
+## ☸️ Kubernetes로 로컬 실행 (권장)
+
+로컬에서 프로덕션과 유사한 환경으로 실행하려면 Kubernetes를 사용하세요.
+
+### 사전 요구사항
+
+```bash
+# Minikube 설치
+brew install minikube kubectl
+
+# Minikube 시작 (CPU 4코어, 메모리 8GB)
+minikube start --cpus=4 --memory=8192
+
+# Docker 환경 연결 (로컬 이미지 사용)
+eval $(minikube docker-env)
+```
+
+### 이미지 빌드
+
+```bash
+# 모든 서비스 이미지 한번에 빌드
+for service in api-gateway auth events booking payment search notification; do
+  cd services/$service
+  docker build -t ticketing/${service}-service:local .
+  cd ../..
+done
+```
+
+### 인프라 서비스 실행
+
+```bash
+# 네임스페이스 생성
+kubectl create namespace ticketing-local
+
+# PostgreSQL
+kubectl run postgres --image=postgres:14 \
+  --env="POSTGRES_PASSWORD=postgres" \
+  --env="POSTGRES_DB=ticketing" \
+  --port=5432 -n ticketing-local
+kubectl expose pod postgres --port=5432 -n ticketing-local
+
+# Redis
+kubectl run redis --image=redis:7-alpine --port=6379 -n ticketing-local
+kubectl expose pod redis --port=6379 -n ticketing-local
+
+# Kafka
+kubectl run kafka --image=apache/kafka:latest \
+  --env="KAFKA_NODE_ID=1" \
+  --env="KAFKA_PROCESS_ROLES=broker,controller" \
+  --env="KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093" \
+  --env="KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092" \
+  --env="KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER" \
+  --env="KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT" \
+  --env="KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093" \
+  --port=9092 -n ticketing-local
+kubectl expose pod kafka --port=9092 -n ticketing-local
+
+# OpenSearch
+kubectl run opensearch --image=opensearchproject/opensearch:latest \
+  --env="discovery.type=single-node" \
+  --env="DISABLE_SECURITY_PLUGIN=true" \
+  --port=9200 -n ticketing-local
+kubectl expose pod opensearch --port=9200 -n ticketing-local
+```
+
+### 애플리케이션 배포
+
+```bash
+# ConfigMap과 Secret 생성
+kubectl apply -f k8s/local/configmap.yaml
+kubectl apply -f k8s/local/secrets.yaml
+
+# 모든 서비스 배포
+kubectl apply -f k8s/local/
+
+# 상태 확인
+kubectl get pods -n ticketing-local
+kubectl get svc -n ticketing-local
+```
+
+### 서비스 접근
+
+```bash
+# API Gateway 접근 (자동으로 브라우저 열림)
+minikube service api-gateway -n ticketing-local
+
+# 또는 포트 포워딩으로 접근
+kubectl port-forward svc/api-gateway 8000:8000 -n ticketing-local
+# http://localhost:8000 접속
+```
+
+### 개발 워크플로우
+
+```bash
+# 코드 수정 후 재배포
+cd services/api-gateway
+docker build -t ticketing/api-gateway-service:local .
+kubectl rollout restart deployment/api-gateway -n ticketing-local
+
+# 로그 확인
+kubectl logs -f deployment/api-gateway -n ticketing-local
+
+# Pod 내부 접속 (디버깅)
+kubectl exec -it deployment/api-gateway -n ticketing-local -- /bin/sh
+```
+
+### 정리
+
+```bash
+# 모든 리소스 삭제
+kubectl delete namespace ticketing-local
+
+# Minikube 중지
+minikube stop
+
+# Minikube 완전 삭제
+minikube delete
+```
+
+**자세한 가이드**: [k8s/local/README.md](k8s/local/README.md)
+
+---
+
 ## 🔐 보안 체크리스트
 
 - [ ] JWT Secret 변경
