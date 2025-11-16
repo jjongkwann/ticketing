@@ -100,7 +100,13 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r pyproject.toml
-          uv pip install --system pytest pytest-asyncio pytest-cov httpx
+          uv pip install --system pytest pytest-asyncio pytest-cov httpx ruff
+
+      - name: Run Ruff linter
+        run: ruff check .
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
 
       - name: Run tests
         run: pytest --cov=app --cov-report=xml
@@ -146,7 +152,13 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r pyproject.toml
-          uv pip install --system pytest pytest-asyncio pytest-cov
+          uv pip install --system pytest pytest-asyncio pytest-cov ruff
+
+      - name: Run Ruff linter
+        run: ruff check .
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
 
       - name: Run tests
         env:
@@ -181,7 +193,13 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -r pyproject.toml
-          uv pip install --system pytest pytest-asyncio pytest-cov
+          uv pip install --system pytest pytest-asyncio pytest-cov ruff
+
+      - name: Run Ruff linter
+        run: ruff check .
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
 
       - name: Run tests
         env:
