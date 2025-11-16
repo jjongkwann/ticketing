@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketing-config
+  namespace: ticketing
+data:
+  # AWS Region
+  AWS_REGION: "us-east-1"
+
+  # Service endpoints (will be populated from Terraform outputs)
+  REDIS_ENDPOINT: ""  # e.g., ticketing-redis.abc123.cache.amazonaws.com:6379
+  MSK_BOOTSTRAP_SERVERS: ""  # e.g., b-1.ticketing.abc123.kafka.us-east-1.amazonaws.com:9092
+  OPENSEARCH_ENDPOINT: ""  # e.g., vpc-ticketing-abc123.us-east-1.es.amazonaws.com
+  RDS_ENDPOINT: ""  # e.g., ticketing-prod.abc123.rds.amazonaws.com:3306
+
+  # DynamoDB Tables
+  DYNAMODB_SEATS_TABLE: "ticketing-seats-prod"
+  DYNAMODB_RESERVATIONS_TABLE: "ticketing-reservations-prod"
+  DYNAMODB_BOOKINGS_TABLE: "ticketing-bookings-prod"
+
+  # Application settings
+  LOG_LEVEL: "info"
+  ENVIRONMENT: "production"
+
+  # Kafka topics
+  KAFKA_TOPIC_SEAT_RESERVED: "seat.reserved"
+  KAFKA_TOPIC_SEAT_RELEASED: "seat.released"
+  KAFKA_TOPIC_BOOKING_CONFIRMED: "booking.confirmed"
+  KAFKA_TOPIC_PAYMENT_COMPLETED: "payment.completed"
+
+  # Redis settings
+  REDIS_LOCK_TTL: "30"  # seconds
+  REDIS_DB: "0"
+
+  # Reservation settings
+  RESERVATION_TTL_MINUTES: "10"
+  RESERVATION_CLEANUP_INTERVAL_SECONDS: "60"
+
+  # gRPC settings
+  GRPC_PORT: "50051"
+  GRPC_MAX_CONN_AGE: "300"  # seconds
+
+  # HTTP settings
+  HTTP_PORT: "8080"
+  HTTP_READ_TIMEOUT: "30"
+  HTTP_WRITE_TIMEOUT: "30"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketing-config
+  namespace: ticketing-dev
+data:
+  AWS_REGION: "us-east-1"
+
+  REDIS_ENDPOINT: ""
+  MSK_BOOTSTRAP_SERVERS: ""
+  OPENSEARCH_ENDPOINT: ""
+  RDS_ENDPOINT: ""
+
+  DYNAMODB_SEATS_TABLE: "ticketing-seats-dev"
+  DYNAMODB_RESERVATIONS_TABLE: "ticketing-reservations-dev"
+  DYNAMODB_BOOKINGS_TABLE: "ticketing-bookings-dev"
+
+  LOG_LEVEL: "debug"
+  ENVIRONMENT: "development"
+
+  KAFKA_TOPIC_SEAT_RESERVED: "seat.reserved"
+  KAFKA_TOPIC_SEAT_RELEASED: "seat.released"
+  KAFKA_TOPIC_BOOKING_CONFIRMED: "booking.confirmed"
+  KAFKA_TOPIC_PAYMENT_COMPLETED: "payment.completed"
+
+  REDIS_LOCK_TTL: "30"
+  REDIS_DB: "0"
+
+  RESERVATION_TTL_MINUTES: "10"
+  RESERVATION_CLEANUP_INTERVAL_SECONDS: "60"
+
+  GRPC_PORT: "50051"
+  GRPC_MAX_CONN_AGE: "300"
+
+  HTTP_PORT: "8080"
+  HTTP_READ_TIMEOUT: "30"
+  HTTP_WRITE_TIMEOUT: "30"
