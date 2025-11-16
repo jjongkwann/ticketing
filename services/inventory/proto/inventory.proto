@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "github.com/ticketing/inventory/proto";
+
+// Inventory Service - Seat management with DynamoDB + Redis
+service InventoryService {
+  // 좌석 조회
+  rpc GetSeats(GetSeatsRequest) returns (GetSeatsResponse);
+
+  // 좌석 예약 (분산 락 사용)
+  rpc ReserveSeat(ReserveSeatRequest) returns (ReserveSeatResponse);
+
+  // 좌석 예약 해제
+  rpc ReleaseSeat(ReleaseSeatRequest) returns (ReleaseSeatResponse);
+
+  // 예약 확정 (결제 완료 후)
+  rpc ConfirmBooking(ConfirmBookingRequest) returns (ConfirmBookingResponse);
+
+  // 예약 취소
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse);
+
+  // 이벤트 좌석 초기화
+  rpc InitializeSeats(InitializeSeatsRequest) returns (InitializeSeatsResponse);
+}
+
+// Seat Status
+enum SeatStatus {
+  AVAILABLE = 0;
+  RESERVED = 1;
+  BOOKED = 2;
+}
+
+// Seat message
+message Seat {
+  string event_id = 1;
+  string seat_number = 2;
+  SeatStatus status = 3;
+  string user_id = 4;
+  double price = 5;
+  int64 reserved_at = 6;  // Unix timestamp
+  int32 version = 7;  // Optimistic locking version
+}
+
+// GetSeats
+message GetSeatsRequest {
+  string event_id = 1;
+  SeatStatus status_filter = 2;  // Optional
+  int32 limit = 3;  // Pagination limit
+  string last_seat_number = 4;  // For pagination
+}
+
+message GetSeatsResponse {
+  repeated Seat seats = 1;
+  bool has_more = 2;
+}
+
+// ReserveSeat
+message ReserveSeatRequest {
+  string event_id = 1;
+  string seat_number = 2;
+  string user_id = 3;
+}
+
+message ReserveSeatResponse {
+  bool success = 1;
+  string message = 2;
+  Seat seat = 3;
+  string reservation_id = 4;
+}
+
+// ReleaseSeat
+message ReleaseSeatRequest {
+  string event_id = 1;
+  string seat_number = 2;
+  string user_id = 3;
+}
+
+message ReleaseSeatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ConfirmBooking
+message ConfirmBookingRequest {
+  string reservation_id = 1;
+  string user_id = 2;
+  string payment_id = 3;
+}
+
+message ConfirmBookingResponse {
+  bool success = 1;
+  string message = 2;
+  string booking_id = 3;
+}
+
+// CancelBooking
+message CancelBookingRequest {
+  string booking_id = 1;
+  string user_id = 2;
+}
+
+message CancelBookingResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// InitializeSeats
+message InitializeSeatsRequest {
+  string event_id = 1;
+  int32 total_seats = 2;
+  double price = 3;
+}
+
+message InitializeSeatsResponse {
+  bool success = 1;
+  string message = 2;
+  int32 created_count = 3;
+}
