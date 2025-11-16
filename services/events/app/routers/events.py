@@ -1,19 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import List, Optional
 from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Event, EventStatus
-from app.schemas import (
-    EventCreate,
-    EventResponse,
-    EventUpdate,
-    EventListResponse,
-    EventSearchQuery,
-)
-from app.search import index_event, update_event_in_index, delete_event_from_index, search_events
+from app.schemas import EventCreate, EventListResponse, EventResponse, EventUpdate
+from app.search import delete_event_from_index, index_event, search_events, update_event_in_index
 
 router = APIRouter(prefix="/events", tags=["events"])
 

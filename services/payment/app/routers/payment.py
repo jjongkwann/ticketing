@@ -1,18 +1,12 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Request, Header
-from typing import Optional
+import logging
 import uuid
 from datetime import datetime
-import logging
-import httpx
+from typing import Optional
 
-from app.schemas import (
-    PaymentCreate,
-    PaymentIntent,
-    PaymentResponse,
-    RefundRequest,
-    RefundResponse,
-    PaymentStatus
-)
+import httpx
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+
+from app.schemas import PaymentCreate, PaymentIntent, PaymentResponse, PaymentStatus, RefundRequest, RefundResponse
 from app.stripe_service import get_stripe_service
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -28,10 +22,7 @@ async def get_current_user_id() -> str:
 
 
 @router.post("/create-intent", response_model=PaymentIntent)
-async def create_payment_intent(
-    payment_data: PaymentCreate,
-    user_id: str = Depends(get_current_user_id)
-):
+async def create_payment_intent(payment_data: PaymentCreate, user_id: str = Depends(get_current_user_id)):
     """결제 Intent 생성 (Stripe)"""
     stripe_service = get_stripe_service()
 
@@ -40,10 +31,7 @@ async def create_payment_intent(
         result = await stripe_service.create_payment_intent(
             amount=payment_data.amount,
             currency=payment_data.currency,
-            metadata={
-                "booking_id": payment_data.booking_id,
-                "user_id": user_id
-            }
+            metadata={"booking_id": payment_data.booking_id, "user_id": user_id},
         )
 
         # Store payment record
@@ -59,23 +47,16 @@ async def create_payment_intent(
             "created_at": datetime.utcnow(),
         }
 
-        return PaymentIntent(
-            client_secret=result["client_secret"],
-            payment_intent_id=result["payment_intent_id"]
-        )
+        return PaymentIntent(client_secret=result["client_secret"], payment_intent_id=result["payment_intent_id"])
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Payment creation failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Payment creation failed: {str(e)}"
         )
 
 
 @router.post("/webhook")
-async def stripe_webhook(
-    request: Request,
-    stripe_signature: Optional[str] = Header(None, alias="Stripe-Signature")
-):
+async def stripe_webhook(request: Request, stripe_signature: Optional[str] = Header(None, alias="Stripe-Signature")):
     """Stripe webhook handler"""
     stripe_service = get_stripe_service()
 
@@ -122,57 +103,37 @@ async def get_payment(payment_id: str, user_id: str = Depends(get_current_user_i
     payment = payments_db.get(payment_id)
 
     if not payment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
 
     return PaymentResponse(**payment)
 
 
 @router.post("/{payment_id}/refund", response_model=RefundResponse)
-async def refund_payment(
-    payment_id: str,
-    refund_data: RefundRequest,
-    user_id: str = Depends(get_current_user_id)
-):
+async def refund_payment(payment_id: str, refund_data: RefundRequest, user_id: str = Depends(get_current_user_id)):
     """결제 환불"""
     stripe_service = get_stripe_service()
 
     payment = payments_db.get(payment_id)
     if not payment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
 
     if payment["status"] != PaymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only refund succeeded payments"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Can only refund succeeded payments")
 
     try:
         result = await stripe_service.create_refund(
-            payment_intent_id=payment["stripe_payment_intent_id"],
-            reason=refund_data.reason
+            payment_intent_id=payment["stripe_payment_intent_id"], reason=refund_data.reason
         )
 
         # Update payment status
         payment["status"] = PaymentStatus.REFUNDED
 
         return RefundResponse(
-            payment_id=payment_id,
-            refund_id=result["refund_id"],
-            amount=result["amount"],
-            status=result["status"]
+            payment_id=payment_id, refund_id=result["refund_id"], amount=result["amount"], status=result["status"]
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Refund failed: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Refund failed: {str(e)}")
 
 
 async def notify_booking_service(booking_id: str, payment_id: str):
@@ -182,8 +143,7 @@ async def notify_booking_service(booking_id: str, payment_id: str):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{booking_service_url}/bookings/{booking_id}/confirm",
-                json={"payment_id": payment_id}
+                f"{booking_service_url}/bookings/{booking_id}/confirm", json={"payment_id": payment_id}
             )
             response.raise_for_status()
             logger.info(f"Notified Booking Service for booking {booking_id}")
