@@ -29,7 +29,7 @@ export default function SeatSelection({ event }: SeatSelectionProps) {
             position: { x: col * 40, y: row * 40 },
           })
         }
-      })
+      }
     })
     setSeats(mockSeats)
   }, [event])
