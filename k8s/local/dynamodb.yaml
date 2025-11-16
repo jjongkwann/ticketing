@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dynamodb-local
+  namespace: ticketing-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dynamodb-local
+  template:
+    metadata:
+      labels:
+        app: dynamodb-local
+    spec:
+      containers:
+      - name: dynamodb-local
+        image: amazon/dynamodb-local:latest
+        command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamodb-local
+  namespace: ticketing-local
+spec:
+  selector:
+    app: dynamodb-local
+  ports:
+  - port: 8000
+    targetPort: 8000

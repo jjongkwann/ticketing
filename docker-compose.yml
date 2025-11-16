@@ -1,0 +1,353 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: ticketing-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ticketing}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ticketing}
+      POSTGRES_DB: ${POSTGRES_DB:-ticketing}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketing-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ticketing-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketing-network
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: ticketing-dynamodb
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    ports:
+      - "8001:8000"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketing-network
+
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    container_name: ticketing-opensearch
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - ticketing-network
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: ticketing-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - ticketing-network
+
+  # ============================================
+  # Application Services
+  # ============================================
+
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: ticketing-auth
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ticketing}:${POSTGRES_PASSWORD:-ticketing}@postgres:5432/${POSTGRES_DB:-ticketing}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-this}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      DD_SERVICE: auth-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  events:
+    build:
+      context: ./services/events
+      dockerfile: Dockerfile
+    container_name: ticketing-events
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ticketing}:${POSTGRES_PASSWORD:-ticketing}@postgres:5432/${POSTGRES_DB:-ticketing}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DD_SERVICE: events-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  inventory:
+    build:
+      context: ./services/inventory
+      dockerfile: Dockerfile
+    container_name: ticketing-inventory
+    environment:
+      GRPC_PORT: ${GRPC_PORT:-50051}
+      HTTP_PORT: ${HTTP_PORT:-8080}
+      DYNAMODB_SEATS_TABLE: ${DYNAMODB_SEATS_TABLE:-ticketing-seats}
+      DYNAMODB_RESERVATIONS_TABLE: ${DYNAMODB_RESERVATIONS_TABLE:-ticketing-reservations}
+      DYNAMODB_BOOKINGS_TABLE: ${DYNAMODB_BOOKINGS_TABLE:-ticketing-bookings}
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummy}
+      REDIS_ENDPOINT: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+    ports:
+      - "50051:50051"
+      - "8080:8080"
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  booking:
+    build:
+      context: ./services/booking
+      dockerfile: Dockerfile
+    container_name: ticketing-booking
+    environment:
+      DYNAMODB_TABLE_NAME: ${DYNAMODB_TABLE_NAME:-bookings}
+      DYNAMODB_ENDPOINT_URL: http://dynamodb-local:8000
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummy}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PRODUCER_TOPIC: ${KAFKA_PRODUCER_TOPIC:-booking-events}
+      INVENTORY_GRPC_HOST: inventory
+      INVENTORY_GRPC_PORT: 50051
+      DD_SERVICE: booking-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8003:8003"
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  payment:
+    build:
+      context: ./services/payment
+      dockerfile: Dockerfile
+    container_name: ticketing-payment
+    environment:
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_your_key}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_your_secret}
+      BOOKING_SERVICE_URL: http://booking:8003
+      DD_SERVICE: payment-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8004:8004"
+    depends_on:
+      - booking
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8004/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  search:
+    build:
+      context: ./services/search
+      dockerfile: Dockerfile
+    container_name: ticketing-search
+    environment:
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: 9200
+      OPENSEARCH_USE_SSL: "false"
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DD_SERVICE: search-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8005:8005"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8005/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+    container_name: ticketing-notification
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      SES_FROM_EMAIL: ${SES_FROM_EMAIL:-noreply@ticketing.com}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-notification-service}
+      DD_SERVICE: notification-service
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8006:8006"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8006/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: ticketing-api-gateway
+    environment:
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      AUTH_SERVICE_URL: http://auth:8001
+      EVENTS_SERVICE_URL: http://events:8002
+      BOOKING_SERVICE_URL: http://booking:8003
+      PAYMENT_SERVICE_URL: http://payment:8004
+      SEARCH_SERVICE_URL: http://search:8005
+      DD_SERVICE: api-gateway
+      DD_ENV: ${ENV:-development}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth
+      - events
+      - booking
+      - payment
+      - search
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ticketing-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ticketing-frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+      VITE_STRIPE_PUBLIC_KEY: ${VITE_STRIPE_PUBLIC_KEY:-pk_test_your_key}
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - ticketing-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  dynamodb_data:
+  opensearch_data:
+  kafka_data:
+
+networks:
+  ticketing-network:
+    driver: bridge

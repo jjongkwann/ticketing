@@ -188,56 +188,77 @@ Ticketing Pro는 대규모 동시 접속과 높은 트랜잭션 처리량을 지
 
 ## 빠른 시작
 
+> **🚀 가장 빠른 방법:** [QUICKSTART.md](./QUICKSTART.md) - 3가지 방법으로 시작하기
+
 ### 사전 요구사항
 
+**Docker Compose 방식 (권장):**
 - Docker & Docker Compose
-- Node.js 18+
-- Python 3.11+
-- Go 1.21+
-- PostgreSQL 14+
+- Make (선택 사항, 편의 기능용)
 
-### 로컬 개발 환경 설정
+**수동 실행 방식:**
+- Node.js 18+, Python 3.11+, Go 1.21+
+- PostgreSQL, Redis, Kafka, OpenSearch 등
+
+### 가장 간단한 시작 방법
 
 ```bash
 # 1. 저장소 클론
 git clone https://github.com/ticketing-pro/ticketing.git
 cd ticketing
 
-# 2. 환경 변수 설정
-cp .env.example .env
-# .env 파일 편집 (DATABASE_URL, STRIPE_SECRET_KEY 등)
+# 2. 한 번에 시작 (환경 변수 생성 + 시스템 시작 + DB 초기화)
+make dev
 
-# 3. Docker Compose로 인프라 실행
-docker-compose up -d postgres redis kafka opensearch
-
-# 4. 데이터베이스 마이그레이션
-cd services/auth
-alembic upgrade head
-
-cd ../events
-alembic upgrade head
-
-# 5. uv 설치 (아직 설치하지 않은 경우)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 6. 백엔드 서비스 실행 (각 터미널에서)
-cd services/api-gateway
-uv pip install --system -r pyproject.toml
-uvicorn app.main:app --reload --port 8000
-
-cd services/auth
-uv pip install --system -r pyproject.toml
-uvicorn app.main:app --reload --port 8001
-
-# ... 다른 서비스들도 동일하게
-
-# 7. 프론트엔드 실행
-cd frontend
-npm install
-npm run dev  # http://localhost:3000
+# 끝! 🎉
+# Frontend: http://localhost:3000
+# API Docs: http://localhost:8000/docs
 ```
 
-자세한 설정은 [Setup Guide](docs/SETUP.md) 참고
+### 다른 방법들
+
+**Docker Compose (수동):**
+```bash
+make init     # 환경 변수 설정
+make up       # 시스템 시작
+make init-db  # DB 초기화
+```
+
+**Tilt + Kubernetes (프로덕션 환경):**
+```bash
+brew install minikube tilt
+minikube start --cpus=4 --memory=8192
+tilt up  # 자동 빌드/배포, 코드 변경 감지
+```
+
+**상세 가이드:**
+- 📖 [QUICKSTART.md](./QUICKSTART.md) - 빠른 시작 (3가지 방법)
+- 📘 [SETUP.md](./SETUP.md) - 전체 설정 가이드
+- 🔧 [Makefile 명령어](./Makefile) - `make help` 실행
+
+---
+
+## 프로젝트 구조
+
+```
+ticketing/
+├── frontend/              # React 프론트엔드
+├── services/
+│   ├── api-gateway/      # API Gateway (FastAPI)
+│   ├── auth/             # 인증 서비스
+│   ├── events/           # 이벤트 관리 서비스
+│   ├── booking/          # 예약 서비스
+│   ├── payment/          # 결제 서비스
+│   ├── search/           # 검색 서비스
+│   ├── notification/     # 알림 서비스
+│   └── inventory/        # 재고 관리 서비스 (Go)
+├── k8s/                  # Kubernetes 매니페스트
+├── docs/                 # 문서
+├── docker-compose.yml    # Docker Compose 설정
+├── Tiltfile             # Tilt 설정
+├── Makefile             # 개발 자동화 스크립트
+└── .env.example         # 환경 변수 템플릿
+```
 
 ---
 

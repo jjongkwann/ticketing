@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-service
+  namespace: ticketing-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: events-service
+  template:
+    metadata:
+      labels:
+        app: events-service
+    spec:
+      containers:
+      - name: events-service
+        image: ticketing/events-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: ticketing-config
+        - secretRef:
+            name: ticketing-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-service
+  namespace: ticketing-local
+spec:
+  selector:
+    app: events-service
+  ports:
+  - port: 8000
+    targetPort: 8000

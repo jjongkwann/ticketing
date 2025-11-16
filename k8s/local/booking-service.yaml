@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: ticketing-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+      - name: booking-service
+        image: ticketing/booking-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: ticketing-config
+        - secretRef:
+            name: ticketing-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: ticketing-local
+spec:
+  selector:
+    app: booking-service
+  ports:
+  - port: 8000
+    targetPort: 8000

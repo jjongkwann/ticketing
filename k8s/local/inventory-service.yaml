@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: ticketing-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      containers:
+      - name: inventory-service
+        image: ticketing/inventory-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 50051
+          name: grpc
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - configMapRef:
+            name: ticketing-config
+        - secretRef:
+            name: ticketing-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: ticketing-local
+spec:
+  selector:
+    app: inventory-service
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+  - name: http
+    port: 8080
+    targetPort: 8080

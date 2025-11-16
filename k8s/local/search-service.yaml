@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: ticketing-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      containers:
+      - name: search-service
+        image: ticketing/search-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: ticketing-config
+        - secretRef:
+            name: ticketing-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  namespace: ticketing-local
+spec:
+  selector:
+    app: search-service
+  ports:
+  - port: 8000
+    targetPort: 8000

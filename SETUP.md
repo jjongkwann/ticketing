@@ -4,6 +4,57 @@
 
 Ticketmaster Pro 수준의 엔터프라이즈 티켓팅 플랫폼 전체 시스템 설정 가이드입니다.
 
+> **🎯 빠르게 시작하고 싶으신가요?** → [QUICKSTART.md](./QUICKSTART.md)로 이동!
+
+## 🆕 개선 사항 (2024)
+
+로컬 개발 환경이 대폭 개선되었습니다!
+
+### ✨ 새로운 기능
+
+1. **Docker Compose 통합** - 한 번의 명령으로 전체 시스템 시작
+   ```bash
+   make dev  # 끝!
+   ```
+
+2. **Makefile 자동화** - 50+ 개발 명령어 지원
+   - `make up`, `make down`, `make logs`, `make restart` 등
+   - 서비스별 제어: `make start service=auth`
+   - 그룹 제어: `make start-infra`, `make start-services`
+
+3. **Tilt 통합** - Kubernetes 로컬 개발 자동화
+   - 코드 변경 시 자동 재빌드/배포
+   - 실시간 로그 스트리밍
+   - 통합 대시보드 (http://localhost:10350)
+
+4. **통합 환경 변수** - 하나의 `.env` 파일로 모든 서비스 설정
+
+### 🔧 개선된 워크플로우
+
+**이전:**
+```bash
+# 각 서비스마다 수동 설정
+cd services/auth && python -m venv venv && ...
+cd services/events && python -m venv venv && ...
+# PostgreSQL 설치, Redis 설치, ...
+# 8개 터미널에서 각각 실행
+```
+
+**지금:**
+```bash
+make dev  # 모든 것이 자동으로 시작됨
+```
+
+## 📚 목차
+
+- [빠른 시작](#-빠른-시작) - 3가지 방법으로 시작하기
+- [Docker Compose 가이드](#-docker-compose-상세-가이드) - 로컬 개발 (권장)
+- [Tilt + Kubernetes 가이드](#️-tilt--kubernetes-상세-가이드) - 프로덕션 환경
+- [환경 변수 설정](#-환경-변수-설정) - 상세 설정
+- [데이터베이스 설정](#️-데이터베이스-설정) - DB 초기화
+- [트러블슈팅](#-트러블슈팅) - 문제 해결
+- [보안 체크리스트](#-보안-체크리스트) - 배포 전 확인
+
 ---
 
 ## 🏗️ 시스템 아키텍처
@@ -38,75 +89,88 @@ Ticketmaster Pro 수준의 엔터프라이즈 티켓팅 플랫폼 전체 시스�
 
 ## 🚀 빠른 시작
 
-### 1. 프론트엔드 실행
+> **💡 권장:** [QUICKSTART.md](./QUICKSTART.md)에서 3가지 간편한 시작 방법을 확인하세요!
+
+### 방법 1: Docker Compose (가장 간단 ⭐)
+
+```bash
+# 1단계: 초기 설정
+make init
+
+# 2단계: 전체 시스템 시작 + DB 초기화
+make dev
+
+# 접속
+# Frontend: http://localhost:3000
+# API Docs: http://localhost:8000/docs
+```
+
+### 방법 2: Tilt + Kubernetes (프로덕션 환경)
+
+```bash
+# 사전 준비
+brew install minikube tilt
+minikube start --cpus=4 --memory=8192
+eval $(minikube docker-env)
+
+# Tilt 실행 (자동 빌드/배포)
+tilt up
+```
+
+### 방법 3: 수동 실행 (개별 서비스 제어)
+
+<details>
+<summary>클릭하여 상세 가이드 보기</summary>
+
+#### 1. 프론트엔드 실행
 
 ```bash
 cd frontend
-
-# 환경 변수 설정
-cp .env.example .env
-# .env 파일을 열어서 값을 설정하세요
-
-# 의존성 설치
 npm install
-
-# 개발 서버 실행
 npm run dev
 ```
 
-프론트엔드는 `http://localhost:3000`에서 실행됩니다.
-
-### 2. API Gateway 실행
+#### 2. API Gateway 실행
 
 ```bash
 cd services/api-gateway
-
-# uv 설치 (아직 설치하지 않은 경우)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 가상환경 생성 (선택 사항)
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 의존성 설치 (uv 사용)
+source venv/bin/activate
 uv pip install --system -r pyproject.toml
-
-# 환경 변수 설정
-cp .env.example .env
-
-# 서버 실행
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. 백엔드 서비스 실행
+#### 3. 백엔드 서비스 실행
 
-각 서비스별로 동일한 패턴 (Python 서비스):
+각 서비스별로 동일한 패턴:
 
 ```bash
 cd services/{service-name}
-
-# 가상환경 생성 (선택 사항)
 python -m venv venv
 source venv/bin/activate
-
-# 의존성 설치 (uv 사용)
 uv pip install --system -r pyproject.toml
-
-# 환경 변수 설정
-cp .env.example .env
-
-# 서버 실행
-uvicorn app.main:app --host 0.0.0.0 --port {PORT} --reload
+uvicorn app.main:app --reload --port {PORT}
 ```
 
 **포트 할당:**
-- Auth Service: 8001
-- Events Service: 8002
-- Booking Service: 8003
-- Payment Service: 8004
-- Search Service: 8005
-- Notification Service: 8006
-- Inventory Service: 50051 (gRPC)
+- Auth: 8001 | Events: 8002 | Booking: 8003
+- Payment: 8004 | Search: 8005 | Notification: 8006
+- Inventory: 50051 (gRPC)
+
+#### 4. Inventory Service (Go)
+
+```bash
+cd services/inventory
+
+# Protobuf 컴파일 (최초 1회)
+protoc --go_out=. --go-grpc_out=. proto/inventory.proto
+
+# 의존성 설치 및 실행
+go mod download
+go run cmd/server/main.go
+```
+
+</details>
 
 ---
 
@@ -339,144 +403,205 @@ stripe listen --forward-to localhost:8004/payments/webhook
 
 ---
 
-## 📦 Docker로 전체 시스템 실행
+## 📦 Docker Compose 상세 가이드
+
+### 기본 명령어
 
 ```bash
-# 전체 시스템 빌드 및 실행
-docker-compose up --build
+# 🚀 빠른 시작 (추천)
+make dev                      # 초기화 + 시작 + DB 설정
 
-# 백그라운드 실행
-docker-compose up -d
-
-# 로그 확인
-docker-compose logs -f
-
-# 중지
-docker-compose down
+# 또는 단계별
+make init                     # 환경 변수 파일 생성
+make up                       # 전체 시스템 시작
+make init-db                  # DynamoDB 테이블 생성
 ```
 
----
-
-## ☸️ Kubernetes로 로컬 실행 (권장)
-
-로컬에서 프로덕션과 유사한 환경으로 실행하려면 Kubernetes를 사용하세요.
-
-### 사전 요구사항
+### 서비스 제어
 
 ```bash
-# Minikube 설치
-brew install minikube kubectl
-
-# Minikube 시작 (CPU 4코어, 메모리 8GB)
-minikube start --cpus=4 --memory=8192
-
-# Docker 환경 연결 (로컬 이미지 사용)
-eval $(minikube docker-env)
-```
-
-### 이미지 빌드
-
-```bash
-# 모든 서비스 이미지 한번에 빌드
-for service in api-gateway auth events booking payment search notification; do
-  cd services/$service
-  docker build -t ticketing/${service}-service:local .
-  cd ../..
-done
-```
-
-### 인프라 서비스 실행
-
-```bash
-# 네임스페이스 생성
-kubectl create namespace ticketing-local
-
-# PostgreSQL
-kubectl run postgres --image=postgres:14 \
-  --env="POSTGRES_PASSWORD=postgres" \
-  --env="POSTGRES_DB=ticketing" \
-  --port=5432 -n ticketing-local
-kubectl expose pod postgres --port=5432 -n ticketing-local
-
-# Redis
-kubectl run redis --image=redis:7-alpine --port=6379 -n ticketing-local
-kubectl expose pod redis --port=6379 -n ticketing-local
-
-# Kafka
-kubectl run kafka --image=apache/kafka:latest \
-  --env="KAFKA_NODE_ID=1" \
-  --env="KAFKA_PROCESS_ROLES=broker,controller" \
-  --env="KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093" \
-  --env="KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092" \
-  --env="KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER" \
-  --env="KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT" \
-  --env="KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093" \
-  --port=9092 -n ticketing-local
-kubectl expose pod kafka --port=9092 -n ticketing-local
-
-# OpenSearch
-kubectl run opensearch --image=opensearchproject/opensearch:latest \
-  --env="discovery.type=single-node" \
-  --env="DISABLE_SECURITY_PLUGIN=true" \
-  --port=9200 -n ticketing-local
-kubectl expose pod opensearch --port=9200 -n ticketing-local
-```
-
-### 애플리케이션 배포
-
-```bash
-# ConfigMap과 Secret 생성
-kubectl apply -f k8s/local/configmap.yaml
-kubectl apply -f k8s/local/secrets.yaml
-
-# 모든 서비스 배포
-kubectl apply -f k8s/local/
-
 # 상태 확인
-kubectl get pods -n ticketing-local
-kubectl get svc -n ticketing-local
+make ps                       # 실행 중인 서비스 확인
+
+# 전체 제어
+make down                     # 전체 중지
+make restart                  # 전체 재시작
+make build                    # 이미지 재빌드
+make rebuild                  # 캐시 없이 재빌드
+
+# 그룹별 제어
+make start-infra             # 인프라만 시작
+make stop-infra              # 인프라만 중지
+make start-services          # 앱 서비스만 시작
+make stop-services           # 앱 서비스만 중지
+
+# 개별 서비스
+make start service=auth      # Auth 서비스 시작
+make stop service=auth       # Auth 서비스 중지
+make restart service=auth    # Auth 서비스 재시작
+make logs service=auth       # Auth 로그 확인
 ```
 
-### 서비스 접근
+### 로그 및 디버깅
 
 ```bash
-# API Gateway 접근 (자동으로 브라우저 열림)
-minikube service api-gateway -n ticketing-local
-
-# 또는 포트 포워딩으로 접근
-kubectl port-forward svc/api-gateway 8000:8000 -n ticketing-local
-# http://localhost:8000 접속
-```
-
-### 개발 워크플로우
-
-```bash
-# 코드 수정 후 재배포
-cd services/api-gateway
-docker build -t ticketing/api-gateway-service:local .
-kubectl rollout restart deployment/api-gateway -n ticketing-local
-
 # 로그 확인
-kubectl logs -f deployment/api-gateway -n ticketing-local
+make logs                     # 전체 로그 (실시간)
+make logs service=auth        # 특정 서비스 로그
 
-# Pod 내부 접속 (디버깅)
-kubectl exec -it deployment/api-gateway -n ticketing-local -- /bin/sh
+# 컨테이너 접속
+make shell service=auth       # 쉘 접속
+make exec service=auth cmd='pytest'  # 명령어 실행
+```
+
+### 데이터베이스 관리
+
+```bash
+# DynamoDB 테이블 초기화
+make init-db
+
+# PostgreSQL 마이그레이션
+make migrate
+
+# 초기 데이터 삽입 (TODO)
+make seed
 ```
 
 ### 정리
 
 ```bash
-# 모든 리소스 삭제
-kubectl delete namespace ticketing-local
+# 일반 정리
+make down                     # 컨테이너만 중지
 
-# Minikube 중지
-minikube stop
+# 완전 정리 (데이터 삭제)
+make clean                    # 볼륨 포함 전체 삭제
 
-# Minikube 완전 삭제
-minikube delete
+# Docker 시스템 정리
+make prune                    # 미사용 리소스 삭제
 ```
 
-**자세한 가이드**: [k8s/local/README.md](k8s/local/README.md)
+### 환경 변수
+
+루트 디렉토리의 `.env` 파일 하나로 모든 서비스 설정:
+
+```bash
+# .env.example 복사
+cp .env.example .env
+
+# 필수 수정 항목
+vim .env
+# - STRIPE_SECRET_KEY
+# - STRIPE_WEBHOOK_SECRET
+# - JWT_SECRET_KEY
+```
+
+---
+
+## ☸️ Tilt + Kubernetes 상세 가이드
+
+### Tilt 사용 (권장)
+
+**Tilt**는 Kubernetes 로컬 개발을 자동화하는 도구입니다. 코드 변경 시 자동으로 재빌드/배포됩니다.
+
+```bash
+# 1. Minikube & Tilt 설치
+brew install minikube kubectl tilt
+
+# 2. Minikube 시작
+minikube start --cpus=4 --memory=8192
+eval $(minikube docker-env)
+
+# 3. Tilt 실행
+tilt up
+
+# Tilt UI 자동 열림: http://localhost:10350
+```
+
+**Tilt UI에서 할 수 있는 것:**
+- 📊 모든 서비스 상태 한눈에 확인
+- 📜 실시간 로그 스트리밍 (서비스별 탭)
+- 🔄 빌드/배포 진행 상황 모니터링
+- ⚡ 코드 변경 감지 → 자동 재빌드/배포
+- 🔧 서비스별 재시작/재빌드 버튼
+
+**종료:**
+```bash
+tilt down                     # Tilt 종료
+minikube stop                 # Minikube 중지
+```
+
+### 수동 배포 (Tilt 없이)
+
+<details>
+<summary>수동으로 kubectl 사용하기 (클릭하여 펼치기)</summary>
+
+```bash
+# 1. Minikube 시작
+minikube start --cpus=4 --memory=8192
+eval $(minikube docker-env)
+
+# 2. 네임스페이스 및 설정 생성
+kubectl apply -f k8s/local/namespace.yaml
+kubectl apply -f k8s/local/configmap.yaml
+kubectl apply -f k8s/local/secrets.yaml
+
+# 3. 이미지 빌드
+for service in api-gateway auth events booking payment search notification inventory; do
+  docker build -t ticketing/${service}-service:local ./services/$service
+done
+docker build -t ticketing/frontend:local ./frontend
+
+# 4. 인프라 배포
+kubectl apply -f k8s/local/postgres.yaml
+kubectl apply -f k8s/local/redis.yaml
+kubectl apply -f k8s/local/dynamodb.yaml
+kubectl apply -f k8s/local/opensearch.yaml
+kubectl apply -f k8s/local/kafka.yaml
+
+# 5. 애플리케이션 배포
+kubectl apply -f k8s/local/
+
+# 6. 상태 확인
+kubectl get pods -n ticketing-local
+kubectl get svc -n ticketing-local
+
+# 7. 서비스 접근 (포트 포워딩)
+kubectl port-forward -n ticketing-local svc/api-gateway 8000:8000
+kubectl port-forward -n ticketing-local svc/frontend 3000:80
+
+# 8. 로그 확인
+kubectl logs -f -n ticketing-local deployment/auth-service
+
+# 9. 재배포 (코드 수정 후)
+docker build -t ticketing/auth-service:local ./services/auth
+kubectl rollout restart -n ticketing-local deployment/auth-service
+
+# 10. 정리
+kubectl delete namespace ticketing-local
+minikube stop
+```
+
+</details>
+
+### Kubernetes 개발 팁
+
+```bash
+# 특정 서비스 로그만 보기 (Tilt UI 대신)
+kubectl logs -f -n ticketing-local deployment/auth-service
+
+# Pod 상태 확인
+kubectl get pods -n ticketing-local -w
+
+# Pod 내부 접속
+kubectl exec -it -n ticketing-local deployment/auth-service -- /bin/sh
+
+# 서비스 재시작
+kubectl rollout restart -n ticketing-local deployment/auth-service
+
+# DynamoDB 테이블 생성
+kubectl port-forward -n ticketing-local svc/dynamodb-local 8001:8000
+./scripts/init-dynamodb.sh
+```
 
 ---
 
