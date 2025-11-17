@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package inventory;
 
-option go_package = "github.com/ticketing/inventory/proto";
+option go_package = "./proto";
 
 // Inventory Service - Seat management with DynamoDB + Redis
 service InventoryService {
