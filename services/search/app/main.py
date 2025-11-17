@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 from fastapi import FastAPI, Query
-from opensearchpy import AsyncOpenSearch
+from opensearchpy._async.client import AsyncOpenSearch
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

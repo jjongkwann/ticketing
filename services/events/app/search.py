@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
-from opensearchpy import AsyncOpenSearch
+from opensearchpy._async.client import AsyncOpenSearch
 
 logger = logging.getLogger(__name__)
 

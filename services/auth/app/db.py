@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = (
-    f"mysql+aiomysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('RDS_ENDPOINT')}/ticketing"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://ticketing:ticketing@postgres:5432/ticketing")
 
 engine = create_async_engine(
     DATABASE_URL,
