@@ -128,7 +128,7 @@ Saga 패턴:
         │                     └─────────┬────────┘           └──────────┬────────┘
         │                               │                                │
         │                     ┌─────────▼────────┐           ┌──────────▼────────┐
-        │                     │Inventory Service │           │Notification Svc   │
+        │                     │Inventory Service │           │ Notification Svc  │
         │                     │      (Go)        │           │   (FastAPI)       │
         │                     │                  │           │                   │
         │                     │    PostgreSQL    │           │   SES/SNS         │
