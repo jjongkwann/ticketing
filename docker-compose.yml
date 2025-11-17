@@ -44,14 +44,15 @@ services:
     container_name: ticketing-dynamodb
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
     ports:
-      - "8001:8000"
+      - "9000:8000"
     volumes:
       - dynamodb_data:/home/dynamodblocal/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 8000 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - ticketing-network
 
@@ -99,7 +100,8 @@ services:
       test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
     networks:
       - ticketing-network
 
@@ -120,12 +122,12 @@ services:
       DD_SERVICE: auth-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8001:8001"
+      - "8001:8000"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -143,12 +145,12 @@ services:
       DD_SERVICE: events-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8002:8002"
+      - "8002:8000"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -178,7 +180,7 @@ services:
       - "8080:8080"
     depends_on:
       dynamodb-local:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
     healthcheck:
@@ -207,16 +209,16 @@ services:
       DD_SERVICE: booking-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8003:8003"
+      - "8003:8000"
     depends_on:
       dynamodb-local:
-        condition: service_healthy
+        condition: service_started
       kafka:
-        condition: service_healthy
+        condition: service_started
       inventory:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -231,15 +233,15 @@ services:
     environment:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_your_key}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_your_secret}
-      BOOKING_SERVICE_URL: http://booking:8003
+      BOOKING_SERVICE_URL: http://booking:8000
       DD_SERVICE: payment-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8004:8004"
+      - "8004:8000"
     depends_on:
       - booking
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8004/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -259,12 +261,12 @@ services:
       DD_SERVICE: search-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8005:8005"
+      - "8005:8000"
     depends_on:
       opensearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8005/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -284,12 +286,12 @@ services:
       DD_SERVICE: notification-service
       DD_ENV: ${ENV:-development}
     ports:
-      - "8006:8006"
+      - "8006:8000"
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8006/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -303,11 +305,11 @@ services:
     container_name: ticketing-api-gateway
     environment:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      AUTH_SERVICE_URL: http://auth:8001
-      EVENTS_SERVICE_URL: http://events:8002
-      BOOKING_SERVICE_URL: http://booking:8003
-      PAYMENT_SERVICE_URL: http://payment:8004
-      SEARCH_SERVICE_URL: http://search:8005
+      AUTH_SERVICE_URL: http://auth:8000
+      EVENTS_SERVICE_URL: http://events:8000
+      BOOKING_SERVICE_URL: http://booking:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
+      SEARCH_SERVICE_URL: http://search:8000
       DD_SERVICE: api-gateway
       DD_ENV: ${ENV:-development}
     ports:

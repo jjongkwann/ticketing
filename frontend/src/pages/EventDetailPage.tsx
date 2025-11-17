@@ -13,7 +13,7 @@ export default function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
-  const { selectedSeats, setEvent, clearCart } = useCartStore()
+  const { selectedSeats, clearCart } = useCartStore()
   const [activeTab, setActiveTab] = useState<'info' | 'seats' | 'reviews'>('info')
   const [isBooking, setIsBooking] = useState(false)
 
@@ -56,7 +56,7 @@ export default function EventDetailPage() {
     locale: ko,
   })
 
-  const totalPrice = selectedSeats.reduce((sum, seatId) => {
+  const totalPrice = selectedSeats.reduce((sum) => {
     // Simple calculation - in real app, get seat price from seat data
     return sum + event.min_price
   }, 0)

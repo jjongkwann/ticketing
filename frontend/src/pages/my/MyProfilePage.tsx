@@ -29,7 +29,7 @@ export default function MyProfilePage() {
 
   const newPassword = watch('newPassword')
 
-  const onSubmit = async (data: ProfileForm) => {
+  const onSubmit = async (_data: ProfileForm) => {
     setIsSaving(true)
     try {
       // TODO: Call API to update profile

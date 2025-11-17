@@ -16,7 +16,7 @@ NC := \033[0m # No Color
 # ============================================
 # 변수
 # ============================================
-COMPOSE := docker-compose
+COMPOSE := docker compose
 ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 
