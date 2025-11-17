@@ -1,20 +1,27 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
 # 시스템 dependencies
 RUN apk add --no-cache git gcc musl-dev protobuf-dev
 
-# Go dependencies
-COPY go.mod go.sum ./
-RUN go mod download
+# Protobuf 플러그인 설치
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.0
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0
 
-# Protobuf 생성 (프로덕션에서는 미리 생성된 파일 사용 권장)
-# RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-# RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+# Go dependencies 초기 복사
+COPY go.mod ./
+COPY go.sum* ./
 
-# Application code
+# Proto 파일 복사 및 생성
+COPY proto/ ./proto/
+RUN protoc --go_out=. --go-grpc_out=. proto/inventory.proto
+
+# 모든 소스 복사
 COPY . .
+
+# Go 모듈 다운로드 (proto 파일 생성 후)
+RUN go mod download
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o inventory-server ./cmd/server
